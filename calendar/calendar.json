@@ -1,0 +1,10 @@
+{
+  "timezone": "America/New_York",
+  "cadence_proposal": "PROPOSED, not confirmed: 3 Shorts/week (Mon/Wed/Fri ~12:00 ET) while watching; each season long-form posts ~1 week after its last episode is scored. Patrick to confirm.",
+  "posts": [],
+  "milestones": [
+    {"date": null, "item": "Build _MASTER GRAPHICS 16x9 project (quote card, score graphic, ranking board)", "done": false},
+    {"date": null, "item": "Voiceover test recording passes the phone-speaker check", "done": false},
+    {"date": null, "item": "Watch + note S01E01", "done": false}
+  ]
+}
