@@ -30,4 +30,4 @@ After posting: ask for retention + CTR, give one improvement.
 ## Watch Log page
 Patrick logs notes live in the "Sunnyvale Watch Log" artifact: https://claude.ai/artifact/3SWfk99VQweMVeFy9mmaYy
 - Source: `tools/watch-companion.src.html` (`__EPISODES__` is filled from episodes.json at publish; republish to the same URL).
-- Notes live in its db, collection `watchnotes`, one doc per episode id (e.g. `S01E01`): `notes[]` {cat,t,text,who,star}, `wrap{}`, `scores{}`, `done`. Read with ArtifactData `list`/`get` when he says "notes are in", then run normal note intake.
+- Notes live in its db, collection `watchnotes`, one doc per episode id (e.g. `S01E01`): `notes[]` {cat (note|quote|scene|scheme|falls|character|callback|weak|arc|idea), t (optional), text, who, star} in entry order, `wrap{}`, `scores{}`, `done`. Read with ArtifactData `list`/`get` when he says "notes are in", then run normal note intake.
