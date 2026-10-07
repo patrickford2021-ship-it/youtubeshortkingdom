@@ -26,3 +26,8 @@ Per episode: 45–60 s Short (hook in first 2 s, verdict + score, one specific m
 Per season: "Every Trailer Park Boys Season X Episode Ranked", worst→best, callbacks, full visual plan, runtime suggestion.
 Metadata per video: 5 titles, description, tags, 3 thumbnail concepts → `/metadata`.
 After posting: ask for retention + CTR, give one improvement.
+
+## Watch Log page
+Patrick logs notes live in the "Sunnyvale Watch Log" artifact: https://claude.ai/artifact/3SWfk99VQweMVeFy9mmaYy
+- Source: `tools/watch-companion.src.html` (`__EPISODES__` is filled from episodes.json at publish; republish to the same URL).
+- Notes live in its db, collection `watchnotes`, one doc per episode id (e.g. `S01E01`): `notes[]` {cat,t,text,who,star}, `wrap{}`, `scores{}`, `done`. Read with ArtifactData `list`/`get` when he says "notes are in", then run normal note intake.

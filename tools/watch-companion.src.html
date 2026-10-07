@@ -1,0 +1,430 @@
+<title>Sunnyvale Watch Log</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Atkinson+Hyperlegible:wght@400;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+/* Layout: one phone-width column. Sticky "deck" (episode + timer) on top, big capture buttons, live note feed, wrap-up card at the end. Dark-first: built for a dim room with the TV on. */
+:root{
+  --bg:#121417; --surface:#1B1E23; --raise:#24282F; --line:#333842;
+  --fg:#F2EFE6; --fg2:#BDB9AE; --muted:#8A8E97;
+  --neon:#FFD23F; --neon-ink:#16130A; --teal:#46BFB5; --red:#EF5A4C; --ok:#7FCB6A;
+  --display:"Bungee","Arial Black",Impact,sans-serif;
+  --body:"Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]){
+    --bg:#F3F1EA; --surface:#FFFFFF; --raise:#ECE9E0; --line:#D6D2C6;
+    --fg:#17181B; --fg2:#3F4249; --muted:#6A6E77;
+    --neon:#E0B000; --neon-ink:#17130A; --teal:#1D7C74; --red:#B83A2E; --ok:#3B8A2C; color-scheme:light;
+  }
+}
+:root[data-theme="light"]{
+  --bg:#F3F1EA; --surface:#FFFFFF; --raise:#ECE9E0; --line:#D6D2C6;
+  --fg:#17181B; --fg2:#3F4249; --muted:#6A6E77;
+  --neon:#E0B000; --neon-ink:#17130A; --teal:#1D7C74; --red:#B83A2E; --ok:#3B8A2C; color-scheme:light;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--fg);font:16px/1.45 var(--body);margin:0}
+.wrap{max-width:720px;margin:0 auto;padding-inline:16px;padding-block:0 120px}
+button,input,textarea,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--neon);outline-offset:2px}
+
+/* deck */
+.deck{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding-block:12px 10px;border-bottom:1px solid var(--line);margin-inline:-16px;padding-inline:16px}
+.brand{font-family:var(--display);font-size:13px;letter-spacing:1px;color:var(--neon);display:flex;justify-content:space-between;align-items:center;gap:8px}
+.save{font-family:var(--body);font-size:12px;letter-spacing:0;color:var(--muted)}
+.save.ok{color:var(--ok)} .save.warn{color:var(--red)}
+.eprow{display:flex;gap:8px;align-items:center;margin-top:8px}
+.eprow select{flex:1;min-width:0;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px;font-weight:700}
+.sq{width:44px;height:44px;flex:none;border-radius:8px;border:1px solid var(--line);background:var(--surface);font-size:18px}
+.epmeta{color:var(--muted);font-size:13px;margin-top:4px}
+.timer{display:flex;align-items:center;gap:8px;margin-top:10px;flex-wrap:wrap}
+.clock{font-family:var(--mono);font-size:30px;font-weight:600;min-width:5.2ch;font-variant-numeric:tabular-nums;background:transparent;border:none;padding:0;text-align:left}
+.clock.run{color:var(--neon)}
+.go{border:none;border-radius:999px;padding:10px 18px;font-weight:700;background:var(--neon);color:var(--neon-ink)}
+.go.pause{background:var(--raise);color:var(--fg)}
+.nudge{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:8px 10px;font-family:var(--mono);font-size:13px}
+.goal{margin-left:auto;text-align:right;font-size:12px;color:var(--muted)}
+.goal b{font-family:var(--mono);font-size:16px;color:var(--fg)}
+.meter{height:4px;background:var(--raise);border-radius:2px;margin-top:8px;overflow:hidden}
+.meter i{display:block;height:100%;background:var(--neon);transition:width .3s}
+
+h2{font-family:var(--display);font-weight:400;font-size:15px;letter-spacing:.5px;margin:26px 0 10px;color:var(--fg)}
+h2 small{font-family:var(--body);font-size:12px;color:var(--muted);letter-spacing:0;margin-left:6px}
+
+/* capture grid */
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+@media (max-width:460px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.cat{position:relative;text-align:left;border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:12px 12px 10px;min-height:76px;display:flex;flex-direction:column;gap:2px}
+.cat:active{transform:translateY(1px)}
+.cat .nm{font-weight:700;font-size:15px;display:flex;align-items:center;gap:7px}
+.cat .hint{font-size:12px;color:var(--muted);line-height:1.3}
+.dot{width:10px;height:10px;border-radius:50%;flex:none;background:var(--c)}
+.cat .cnt{position:absolute;top:8px;right:9px;font-family:var(--mono);font-size:12px;color:var(--muted)}
+.cat.has{border-color:var(--c)}
+.cat.has .cnt{color:var(--fg)}
+
+/* composer */
+.composer{border:2px solid var(--c,var(--neon));background:var(--surface);border-radius:12px;padding:12px;margin-top:12px;display:grid;gap:8px}
+.crow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.ctag{font-weight:700;display:flex;gap:6px;align-items:center}
+.tin{width:5.5ch;font-family:var(--mono);background:var(--raise);border:1px solid var(--line);border-radius:6px;padding:6px;text-align:center}
+.who{flex:1;min-width:120px;background:var(--raise);border:1px solid var(--line);border-radius:6px;padding:6px 8px}
+.composer textarea{width:100%;min-height:76px;resize:vertical;background:var(--raise);border:1px solid var(--line);border-radius:8px;padding:10px;font-size:16px}
+.ask{font-size:13px;color:var(--fg2)}
+.cbtns{display:flex;gap:8px;justify-content:flex-end}
+.btn{border:1px solid var(--line);background:var(--raise);border-radius:8px;padding:9px 14px;font-weight:700}
+.btn.pri{background:var(--neon);color:var(--neon-ink);border-color:var(--neon)}
+
+/* checklist */
+.check{display:flex;flex-wrap:wrap;gap:6px}
+.pill{font-size:12px;border:1px solid var(--line);border-radius:999px;padding:4px 10px;color:var(--muted);display:inline-flex;gap:5px;align-items:center}
+.pill.done{color:var(--fg);border-color:var(--ok)}
+.pill.done::before{content:"✓";color:var(--ok);font-weight:700}
+
+/* feed */
+.feed{display:grid;gap:8px}
+.note{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:start;background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--c);border-radius:8px;padding:10px}
+.note .ts{font-family:var(--mono);font-size:13px;color:var(--fg2);padding-top:2px;background:none;border:none}
+.note .tx{min-width:0;overflow-wrap:anywhere}
+.note .lb{font-size:11px;letter-spacing:.8px;text-transform:uppercase;color:var(--muted)}
+.note .who2{color:var(--teal);font-weight:700}
+.note .acts{display:flex;gap:2px}
+.ib{border:none;background:none;width:34px;height:34px;border-radius:6px;color:var(--muted);font-size:16px}
+.ib.star.on{color:var(--neon)}
+.ib:hover{background:var(--raise)}
+.empty{border:1px dashed var(--line);border-radius:10px;padding:16px;color:var(--muted);font-size:14px}
+
+/* wrap-up */
+.wrapup{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;display:grid;gap:14px}
+.field label{display:block;font-weight:700;font-size:14px;margin-bottom:4px}
+.field .sub{font-size:12px;color:var(--muted);font-weight:400;margin-left:4px}
+.field textarea,.field input{width:100%;background:var(--raise);border:1px solid var(--line);border-radius:8px;padding:9px 10px;font-size:15px}
+.field textarea{min-height:58px;resize:vertical}
+.score{display:grid;gap:6px}
+.srow{display:grid;grid-template-columns:minmax(0,9.5em) minmax(0,1fr);gap:8px;align-items:center}
+@media (max-width:460px){.srow{grid-template-columns:minmax(0,1fr)}}
+.srow .nm{font-weight:700;font-size:14px}
+.srow .nm span{display:block;font-weight:400;font-size:12px;color:var(--muted)}
+.ten{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:3px}
+.ten button{border:1px solid var(--line);background:var(--raise);border-radius:6px;height:36px;font-family:var(--mono);font-size:13px;padding:0}
+.ten button.on{background:var(--neon);color:var(--neon-ink);border-color:var(--neon);font-weight:600}
+.total{display:flex;align-items:baseline;gap:10px;justify-content:space-between;border-top:1px solid var(--line);padding-top:10px}
+.total .big{font-family:var(--display);font-size:34px;color:var(--neon);font-variant-numeric:tabular-nums}
+.toggle{display:flex;gap:10px;align-items:center;font-weight:700}
+.toggle input{width:22px;height:22px;accent-color:var(--neon)}
+
+.bar{position:fixed;left:0;right:0;bottom:0;background:var(--bg);border-top:1px solid var(--line);padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px));z-index:6}
+.bar .in{max-width:720px;margin:0 auto;display:flex;gap:8px}
+.bar .btn{flex:1}
+.toast{position:fixed;left:50%;bottom:80px;transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:8px 14px;border-radius:999px;font-weight:700;font-size:14px;z-index:9}
+.copybox{width:100%;min-height:200px;font-family:var(--mono);font-size:12px;background:var(--raise);border:1px solid var(--line);border-radius:8px;padding:8px;margin-top:8px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+  <div class="deck">
+    <div class="brand"><span>SUNNYVALE WATCH LOG</span><span class="save" id="save">Loading…</span></div>
+    <div class="eprow">
+      <button class="sq" id="prev" aria-label="Previous episode">‹</button>
+      <select id="ep" aria-label="Episode"></select>
+      <button class="sq" id="next" aria-label="Next episode">›</button>
+    </div>
+    <div class="epmeta" id="epmeta"></div>
+    <div class="timer">
+      <button class="clock" id="clock" title="Tap to set the time by hand">0:00</button>
+      <button class="go" id="go">Start</button>
+      <button class="nudge" id="m10" aria-label="Back 10 seconds">−10s</button>
+      <button class="nudge" id="p10" aria-label="Forward 10 seconds">+10s</button>
+      <div class="goal"><b id="ncount">0</b> / 10–15 notes</div>
+    </div>
+    <div class="meter" aria-hidden="true"><i id="meter" style="width:0%"></i></div>
+  </div>
+
+  <h2>Tap when something happens <small>timestamp is grabbed the moment you tap</small></h2>
+  <div class="grid" id="grid"></div>
+  <form class="composer" id="composer" hidden>
+    <div class="crow">
+      <span class="ctag" id="ctag"></span>
+      <label class="sub" for="ctime" style="margin-left:auto;font-size:12px;color:var(--muted)">at</label>
+      <input class="tin" id="ctime" inputmode="numeric" aria-label="Timestamp">
+    </div>
+    <div class="ask" id="cask"></div>
+    <input class="who" id="cwho" placeholder="Who said it?" aria-label="Who said it" hidden>
+    <textarea id="ctext" aria-label="Note" placeholder="Shorthand is fine"></textarea>
+    <div class="cbtns">
+      <button type="button" class="btn" id="ccancel">Cancel</button>
+      <button type="submit" class="btn pri" id="csave">Save note</button>
+    </div>
+  </form>
+
+  <h2>The checklist <small>lights up as you cover it</small></h2>
+  <div class="check" id="check"></div>
+
+  <h2>Your notes <small id="feedhint">newest first · ★ = contender for "best"</small></h2>
+  <div class="feed" id="feed"></div>
+
+  <h2>After the credits</h2>
+  <div class="wrapup" id="wrapup">
+    <div class="field"><label for="w_best_quote">Best quote <span class="sub">exact words + who. Starred quotes fill in here.</span></label><textarea id="w_best_quote"></textarea></div>
+    <div class="field"><label for="w_runner_ups">Runner-up quotes <span class="sub">1–2</span></label><textarea id="w_runner_ups"></textarea></div>
+    <div class="field"><label for="w_best_scene">Best scene <span class="sub">what happens + why it works</span></label><textarea id="w_best_scene"></textarea></div>
+    <div class="field"><label for="w_scheme">The scheme, and how it falls apart</label><textarea id="w_scheme"></textarea></div>
+    <div class="field"><label for="w_standout">Standout character <span class="sub">+ why</span></label><textarea id="w_standout"></textarea></div>
+    <div class="field"><label for="w_arc">Season-arc importance <span class="sub">skippable, essential, sets something up?</span></label><textarea id="w_arc"></textarea></div>
+    <div class="field"><label for="w_rewatch">Rewatchability <span class="sub">would you put it on again? why?</span></label><textarea id="w_rewatch"></textarea></div>
+    <div class="field"><label for="w_verdict">Gut verdict <span class="sub">one sentence. This often becomes the Short's hook.</span></label><input id="w_verdict"></div>
+    <div class="score" id="score"></div>
+    <div class="total"><span>Total</span><span class="big" id="total">—/50</span></div>
+    <label class="toggle"><input type="checkbox" id="w_done"> Done with this episode</label>
+  </div>
+
+  <h2>Hand-off</h2>
+  <div class="empty" id="handoff">Theodore reads these notes straight from this page. Just say "notes are in" in chat. If saving ever shows "this device only," use <b>Copy for Theodore</b> and paste.</div>
+  <textarea class="copybox" id="copybox" hidden aria-label="Notes as text"></textarea>
+</div>
+
+<div class="bar"><div class="in">
+  <button class="btn" id="copy">Copy for Theodore</button>
+  <button class="btn pri" id="jump">Wrap-up ↓</button>
+</div></div>
+<div class="toast" id="toast" hidden></div>
+
+<script id="eps" type="application/json">__EPISODES__</script>
+<script>
+(function(){
+"use strict";
+var EPS=JSON.parse(document.getElementById('eps').textContent);
+var CATS=[
+  {k:'quote',nm:'Quote',c:'var(--neon)',hint:'A line for a quote card',ask:'Exact words if you can. Short beats long.'},
+  {k:'scene',nm:'Great scene',c:'#F08A3C',hint:'What you’d clip if you could',ask:'What happens, and why does it land?'},
+  {k:'scheme',nm:'The scheme',c:'var(--teal)',hint:'What’s the plan this time?',ask:'Whose plan, what’s the goal, who’s in on it?'},
+  {k:'falls',nm:'Falls apart',c:'var(--red)',hint:'Where it goes sideways',ask:'What breaks, and whose fault is it?'},
+  {k:'character',nm:'Character',c:'#9C8CFF',hint:'Who’s carrying it?',ask:'Who, and what are they doing that works (or doesn’t)?'},
+  {k:'callback',nm:'Callback / gag',c:'#5FB0F0',hint:'Running gags, firsts, references',ask:'New gag starting, or an old one paying off?'},
+  {k:'weak',nm:'Weak spot',c:'#A0A4AC',hint:'Drags, misses, aged badly',ask:'What didn’t work for you?'},
+  {k:'arc',nm:'Arc moment',c:'#E26BB4',hint:'Setup or payoff for the season',ask:'What does this set up or pay off?'},
+  {k:'idea',nm:'Video idea',c:'var(--ok)',hint:'Hook, joke, fact to check',ask:'Anything for the Short or season video.'}
+];
+var CAT={}; CATS.forEach(function(c){CAT[c.k]=c;});
+var CHECK=[
+  ['Best quote',function(d){return has(d,'quote')||!!d.wrap.best_quote;}],
+  ['Runner-ups',function(d){return count(d,'quote')>=2||!!d.wrap.runner_ups;}],
+  ['Best scene',function(d){return has(d,'scene')||!!d.wrap.best_scene;}],
+  ['The scheme',function(d){return has(d,'scheme')||!!d.wrap.scheme;}],
+  ['How it falls apart',function(d){return has(d,'falls')||!!d.wrap.scheme;}],
+  ['Standout character',function(d){return has(d,'character')||!!d.wrap.standout;}],
+  ['Callbacks / gags',function(d){return has(d,'callback');}],
+  ['Weak spots',function(d){return has(d,'weak');}],
+  ['Arc importance',function(d){return has(d,'arc')||!!d.wrap.arc;}],
+  ['Rewatchability',function(d){return !!d.wrap.rewatch;}],
+  ['Gut verdict',function(d){return !!d.wrap.verdict;}],
+  ['All 5 scores',function(d){return SC.every(function(s){return d.scores[s[0]];});}]
+];
+var SC=[['humor','Humor','Laughs per minute'],['story_scheme','Story / Scheme','Plan + how it unravels'],['characters','Characters','Who shines, who’s used well'],['quotability','Quotability','Lines fans repeat'],['rewatchability','Rewatchability','Would you put it on again?']];
+var WF=['best_quote','runner_ups','best_scene','scheme','standout','arc','rewatch','verdict'];
+function has(d,k){return d.notes.some(function(n){return n.cat===k;});}
+function count(d,k){return d.notes.filter(function(n){return n.cat===k;}).length;}
+function $(id){return document.getElementById(id);}
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function fmt(sec){sec=Math.max(0,Math.round(sec));var m=Math.floor(sec/60),s=sec%60;return m+':'+(s<10?'0':'')+s;}
+function parseT(str){var m=String(str).trim().match(/^(\d{1,3})(?::(\d{1,2}))?$/);if(!m)return null;return m[2]==null?(+m[1])*60:(+m[1])*60+(+m[2]);}
+function blank(ep){return {id:ep.id,title:ep.t,notes:[],wrap:{},scores:{},done:false,updatedAt:null};}
+function lsGet(k){try{return JSON.parse(localStorage.getItem(k));}catch(e){return null;}}
+function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
+
+var db=null, dbState='pending', cur=null, doc=null, summary={};
+var saveTimer=null, saving=false, again=false;
+
+// ---- episode picker
+function optLabel(e){var tag=e.s?('S'+String(e.s).padStart(2,'0')+'E'+e.id.slice(-2)):'Special';var st=summary[e.id];var mark=st==='done'?'✓ ':st==='started'?'• ':'';return mark+tag+' · '+e.t;}
+function buildPicker(){
+  var sel=$('ep'), h='', lastS=null;
+  EPS.forEach(function(e){
+    if(e.s!==lastS){ if(lastS!==null) h+='</optgroup>'; h+='<optgroup label="'+(e.s?'Season '+e.s:'Specials & films')+'">'; lastS=e.s; }
+    h+='<option value="'+e.id+'">'+esc(optLabel(e))+'</option>';
+  });
+  sel.innerHTML=h+'</optgroup>';
+  if(cur) sel.value=cur.id;
+}
+function epIndex(){return EPS.findIndex(function(e){return e.id===cur.id;});}
+
+// ---- timer (per episode, kept on this device)
+var T={acc:0,start:null};
+function tNow(){return T.acc+(T.start?(Date.now()-T.start)/1000:0);}
+function tSave(){lsSet('wl-timer-'+cur.id,T);}
+var wake=null;
+function wakeOn(){try{if(navigator.wakeLock)navigator.wakeLock.request('screen').then(function(w){wake=w;}).catch(function(){});}catch(e){}}
+function wakeOff(){try{if(wake){wake.release();wake=null;}}catch(e){}}
+document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible'&&T.start)wakeOn();});
+function tick(){ $('clock').textContent=fmt(tNow()); $('clock').classList.toggle('run',!!T.start); var g=$('go'); g.textContent=T.start?'Pause':(T.acc>0?'Resume':'Start'); g.classList.toggle('pause',!!T.start); }
+setInterval(tick,500);
+$('go').onclick=function(){ if(T.start){T.acc=tNow();T.start=null;wakeOff();}else{T.start=Date.now();wakeOn();} tSave(); tick(); };
+$('p10').onclick=function(){if(T.start){T.acc=tNow();T.start=Date.now();}T.acc+=10;tSave();tick();};
+$('m10').onclick=function(){T.acc=tNow();if(T.start)T.start=Date.now();T.acc=Math.max(0,T.acc-10);tSave();tick();};
+$('clock').onclick=function(){
+  var c=$('clock'); var inp=document.createElement('input'); inp.className='tin'; inp.value=fmt(tNow()); inp.setAttribute('aria-label','Set timer, minutes:seconds');
+  c.hidden=true; c.parentNode.insertBefore(inp,c); inp.focus(); inp.select();
+  function done(){var v=parseT(inp.value); if(v!=null){T.acc=v; if(T.start)T.start=Date.now(); tSave();} inp.remove(); c.hidden=false; tick();}
+  inp.addEventListener('blur',done); inp.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();inp.blur();}});
+};
+
+// ---- capture
+var draft=null;
+function buildGrid(){
+  $('grid').innerHTML=CATS.map(function(c){return '<button class="cat" data-k="'+c.k+'" style="--c:'+c.c+'"><span class="cnt" data-cnt="'+c.k+'"></span><span class="nm"><span class="dot"></span>'+esc(c.nm)+'</span><span class="hint">'+esc(c.hint)+'</span></button>';}).join('');
+  Array.prototype.forEach.call(document.querySelectorAll('.cat'),function(b){b.onclick=function(){openComposer(b.dataset.k,tNow());};});
+}
+function openComposer(k,t,editId){
+  var c=CAT[k], n=editId?doc.notes.find(function(x){return x.id===editId;}):null;
+  draft={k:k,edit:editId||null};
+  var f=$('composer'); f.hidden=false; f.style.setProperty('--c',c.c);
+  $('ctag').innerHTML='<span class="dot" style="--c:'+c.c+'"></span>'+esc(c.nm);
+  $('cask').textContent=c.ask;
+  $('ctime').value=n?n.t:fmt(t);
+  $('cwho').hidden=(k!=='quote'); $('cwho').value=n&&n.who||'';
+  $('ctext').value=n?n.text:'';
+  $('csave').textContent=n?'Update note':'Save note';
+  f.scrollIntoView({block:'nearest',behavior:'smooth'});
+  setTimeout(function(){ (k==='quote'&&!n? $('ctext'):$('ctext')).focus(); },60);
+}
+function closeComposer(){ $('composer').hidden=true; draft=null; }
+$('ccancel').onclick=closeComposer;
+$('ctext').addEventListener('keydown',function(e){ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); $('composer').requestSubmit(); } });
+$('composer').addEventListener('submit',function(e){
+  e.preventDefault(); if(!draft) return;
+  var text=$('ctext').value.trim(); if(!text){ $('ctext').focus(); return; }
+  var t=$('ctime').value.trim(); var tv=parseT(t); t=tv==null?t:fmt(tv);
+  var who=draft.k==='quote'?$('cwho').value.trim():'';
+  if(draft.edit){ var n=doc.notes.find(function(x){return x.id===draft.edit;}); n.text=text; n.t=t; n.who=who; }
+  else doc.notes.push({id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),cat:draft.k,t:t,sec:tv,text:text,who:who,star:false});
+  closeComposer(); changed(); toast('Saved note');
+});
+
+// ---- feed
+function sortedNotes(){return doc.notes.slice().sort(function(a,b){return (b.sec==null?-1:b.sec)-(a.sec==null?-1:a.sec);});}
+function renderFeed(){
+  var f=$('feed');
+  if(!doc.notes.length){ f.innerHTML='<div class="empty">No notes yet. Hit <b>Start</b> when the episode starts, then tap a button above whenever something happens. Aim for 10–15.</div>'; return; }
+  f.innerHTML=sortedNotes().map(function(n){var c=CAT[n.cat]||CAT.idea;
+    return '<div class="note" style="--c:'+c.c+'"><button class="ts" data-edit="'+n.id+'" aria-label="Edit note">'+esc(n.t)+'</button><div class="tx"><div class="lb">'+esc(c.nm)+'</div>'+(n.who?'<span class="who2">'+esc(n.who)+':</span> ':'')+esc(n.text)+'</div><div class="acts"><button class="ib star'+(n.star?' on':'')+'" data-star="'+n.id+'" aria-pressed="'+!!n.star+'" aria-label="Mark as best">★</button><button class="ib" data-edit="'+n.id+'" aria-label="Edit">✎</button><button class="ib" data-del="'+n.id+'" aria-label="Delete">✕</button></div></div>';}).join('');
+}
+$('feed').addEventListener('click',function(e){
+  var b=e.target.closest('button'); if(!b) return;
+  if(b.dataset.edit){ var n=doc.notes.find(function(x){return x.id===b.dataset.edit;}); openComposer(n.cat,0,n.id); }
+  if(b.dataset.star){ var s=doc.notes.find(function(x){return x.id===b.dataset.star;}); s.star=!s.star;
+    if(s.star&&s.cat==='quote'&&!doc.wrap.best_quote){ doc.wrap.best_quote=(s.who?s.who+': ':'')+'"'+s.text+'" (~'+s.t+')'; fillWrap(); }
+    if(s.star&&s.cat==='scene'&&!doc.wrap.best_scene){ doc.wrap.best_scene=s.text+' (~'+s.t+')'; fillWrap(); }
+    changed(); }
+  if(b.dataset.del){
+    if(b.dataset.armed){ doc.notes=doc.notes.filter(function(x){return x.id!==b.dataset.del;}); changed(); toast('Deleted'); }
+    else { b.dataset.armed='1'; b.textContent='Sure?'; b.style.width='auto'; b.style.color='var(--red)'; setTimeout(function(){ if(b.isConnected){ delete b.dataset.armed; b.textContent='✕'; b.style.width=''; b.style.color=''; } },2500); }
+  }
+});
+
+// ---- checklist + counts
+function renderCheck(){
+  $('check').innerHTML=CHECK.map(function(c){return '<span class="pill'+(c[1](doc)?' done':'')+'">'+esc(c[0])+'</span>';}).join('');
+  var n=doc.notes.length; $('ncount').textContent=n; $('meter').style.width=Math.min(100,n/15*100)+'%';
+  CATS.forEach(function(c){ var el=document.querySelector('[data-cnt="'+c.k+'"]'); var k=count(doc,c.k); el.textContent=k||''; el.parentNode.classList.toggle('has',k>0); });
+}
+
+// ---- wrap-up
+function buildScore(){
+  $('score').innerHTML=SC.map(function(s){var b='';for(var i=1;i<=10;i++)b+='<button type="button" data-s="'+s[0]+'" data-v="'+i+'" aria-label="'+s[1]+' '+i+'">'+i+'</button>';return '<div class="srow"><div class="nm">'+s[1]+'<span>'+s[2]+'</span></div><div class="ten" role="group" aria-label="'+s[1]+'">'+b+'</div></div>';}).join('');
+  $('score').addEventListener('click',function(e){var b=e.target.closest('button[data-s]');if(!b)return;var k=b.dataset.s,v=+b.dataset.v;doc.scores[k]=doc.scores[k]===v?null:v;renderScore();changed();});
+}
+function renderScore(){
+  Array.prototype.forEach.call(document.querySelectorAll('#score button'),function(b){var on=doc.scores[b.dataset.s]===+b.dataset.v;b.classList.toggle('on',on);b.setAttribute('aria-pressed',on);});
+  var all=SC.every(function(s){return doc.scores[s[0]];}); var sum=SC.reduce(function(a,s){return a+(doc.scores[s[0]]||0);},0);
+  $('total').textContent=(all?sum:(sum?sum+'…':'—'))+'/50';
+}
+function fillWrap(){ WF.forEach(function(k){ var el=$('w_'+k); if(document.activeElement!==el) el.value=doc.wrap[k]||''; }); $('w_done').checked=!!doc.done; }
+WF.forEach(function(k){ $('w_'+k).addEventListener('input',function(e){ doc.wrap[k]=e.target.value; changed(true); }); });
+$('w_done').addEventListener('change',function(e){ doc.done=e.target.checked; changed(); if(doc.done) toast('Nice. Tell Theodore the notes are in.'); });
+
+// ---- render + persistence
+function renderAll(){ renderFeed(); renderCheck(); renderScore(); fillWrap();
+  var e=cur; $('epmeta').textContent=(e.s?'Season '+e.s+' · #'+e.n+' of 105 · ':'')+'aired '+e.d+(e.w?' · watch '+e.w:''); }
+function setSave(txt,cls){ var s=$('save'); s.textContent=txt; s.className='save'+(cls?' '+cls:''); }
+function changed(quiet){
+  doc.updatedAt=new Date().toISOString(); lsSet('wl-doc-'+cur.id,doc);
+  summary[cur.id]=doc.done?'done':(doc.notes.length||Object.keys(doc.wrap).length?'started':summary[cur.id]);
+  if(!quiet){ renderFeed(); renderCheck(); renderScore(); }
+  else renderCheck();
+  clearTimeout(saveTimer); saveTimer=setTimeout(flush,quiet?1200:300);
+  if(db) setSave('Saving…'); else if(dbState==='none') setSave('Saved on this device only','warn');
+}
+function flush(){
+  saveTimer=null; if(!db) return; if(saving){again=true;return;}
+  saving=true; var snap=JSON.parse(JSON.stringify(doc));
+  db.doc('watchnotes/'+snap.id).set(snap).then(function(){ setSave('Saved ✓','ok'); }).catch(function(e){
+    setSave(e&&e.code==='quota_exceeded'?'Storage full. Use Copy for Theodore':'Not synced. Saved on this device','warn');
+  }).then(function(){ saving=false; if(again){again=false;flush();} });
+  var opt=document.querySelector('#ep option[value="'+snap.id+'"]'); if(opt) opt.textContent=optLabel(cur);
+}
+function loadEp(id){
+  if(doc && saveTimer){ clearTimeout(saveTimer); flush(); }
+  wakeOff();
+  cur=EPS.find(function(e){return e.id===id;})||EPS[0]; $('ep').value=cur.id; lsSet('wl-last',cur.id);
+  T=lsGet('wl-timer-'+cur.id)||{acc:0,start:null}; if(T.start) wakeOn(); tick();
+  closeComposer();
+  var local=lsGet('wl-doc-'+cur.id);
+  doc=local||blank(cur); renderAll();
+  if(db){
+    var want=cur.id;
+    db.doc('watchnotes/'+want).get().then(function(s){
+      if(cur.id!==want) return;
+      var remote=s.exists?s.data():null;
+      if(remote && (!local || (remote.updatedAt||'')>(local.updatedAt||''))){ doc=JSON.parse(JSON.stringify(remote)); lsSet('wl-doc-'+cur.id,doc); renderAll(); setSave('Saved ✓','ok'); }
+      else if(local && (!remote || (local.updatedAt||'')>(remote.updatedAt||''))){ flush(); }
+      else setSave('Saved ✓','ok');
+    }).catch(function(){ setSave('Not synced. Saved on this device','warn'); });
+  }
+}
+$('ep').onchange=function(e){loadEp(e.target.value);};
+$('prev').onclick=function(){var i=epIndex();if(i>0)loadEp(EPS[i-1].id);};
+$('next').onclick=function(){var i=epIndex();if(i<EPS.length-1)loadEp(EPS[i+1].id);};
+
+// ---- hand-off
+function asMarkdown(){
+  var d=doc, L=[];
+  L.push('# '+(cur.s?cur.id:cur.id)+' — '+cur.t,'');
+  L.push('## Running notes');
+  doc.notes.slice().sort(function(a,b){return (a.sec==null?1e9:a.sec)-(b.sec==null?1e9:b.sec);}).forEach(function(n,i){L.push((i+1)+'. ~'+n.t+' — ['+CAT[n.cat].nm+']'+(n.star?' ★':'')+' '+(n.who?n.who+': ':'')+n.text);});
+  L.push('','## Checklist');
+  [['Best quote','best_quote'],['Runner-up quotes','runner_ups'],['Best scene','best_scene'],['Scheme + how it falls apart','scheme'],['Standout character','standout'],['Season-arc importance','arc'],['Rewatchability','rewatch'],['Gut verdict','verdict']].forEach(function(p){L.push('- **'+p[0]+':** '+(d.wrap[p[1]]||''));});
+  L.push('','## Scores');
+  SC.forEach(function(s){L.push('- '+s[1]+': '+(d.scores[s[0]]||'_'));});
+  var all=SC.every(function(s){return d.scores[s[0]];}); L.push('- **Total: '+(all?SC.reduce(function(a,s){return a+d.scores[s[0]];},0):'_')+'/50**');
+  return L.join('\n');
+}
+$('copy').onclick=function(){
+  var md=asMarkdown(), box=$('copybox');
+  box.value=md;
+  try{ navigator.clipboard.writeText(md).then(function(){toast('Copied. Paste it to Theodore');},function(){box.hidden=false;box.focus();box.select();toast('Select all and copy');}); }
+  catch(e){ box.hidden=false; box.focus(); box.select(); toast('Select all and copy'); }
+};
+$('jump').onclick=function(){ $('wrapup').scrollIntoView({behavior:'smooth',block:'start'}); };
+var tt=null; function toast(m){var t=$('toast');t.textContent=m;t.hidden=false;clearTimeout(tt);tt=setTimeout(function(){t.hidden=true;},1800);}
+
+// ---- boot
+buildGrid(); buildScore();
+EPS.forEach(function(e){var l=lsGet('wl-doc-'+e.id); if(l) summary[e.id]=l.done?'done':'started';});
+buildPicker();
+var first=lsGet('wl-last')||EPS[0].id;
+loadEp(first);
+setSave('Connecting…');
+var hasClaude=!!(window.claude&&window.claude.use);
+(hasClaude?window.claude.use('db'):Promise.resolve(null)).then(function(d){
+  if(!d){ dbState='none'; setSave('Saved on this device only','warn'); return; }
+  db=d; dbState='ok';
+  db.collection('watchnotes').get().then(function(q){ q.docs.forEach(function(s){var v=s.data(); if(v) summary[s.id]=v.done?'done':((v.notes&&v.notes.length)?'started':summary[s.id]);}); buildPicker(); }).catch(function(){});
+  loadEp(cur.id);
+}).catch(function(){ dbState='none'; setSave('Saved on this device only','warn'); });
+})();
+</script>
